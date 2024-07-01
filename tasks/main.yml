@@ -1,6 +1,6 @@
 ---
 - name: install packages
-  apt:
+  yum:
     name: "{{ item }}"
     state: present
     update_cache: yes
@@ -21,41 +21,57 @@
     shell: /usr/bin/nologin
     home: /srv/monicahq
 
-- name: Install sury key
-  apt_key:
-    url: 'https://packages.sury.org/php/apt.gpg'
-    state: present
+- name: Import Remi GPG key.
+  rpm_key: "key={{ item }} state=present"
+  with_items:
+    - "http://rpms.famillecollet.com/RPM-GPG-KEY-remi"
 
-- name: Add sury repositories
-  apt_repository:
-    repo: "deb https://packages.sury.org/php/ stretch main"
+- name: Install Remi repo.
+  command: "rpm -Uvh --force {{ item.href }} creates={{ item.creates }}"
+  with_items:
+    - href: "http://rpms.famillecollet.com/enterprise/remi-release-8.rpm"
+      creates: "/etc/yum.repos.d/remi.repo"
+
+- name: Install EPEL repo.
+  yum: name=epel-release state=present
+
+- name: Ensure firewalld is stopped (since this is a test server).
+  service: name=firewalld state=stopped
+
+- name: Install Node.js and npm.
+  yum: name=npm state=present enablerepo=epel
+
+- name: Install Forever (to run our Node.js app).
+  npm: name=forever global=yes state=latest
+
+- name: Install a modularity appstream with defined stream and profile
+  ansible.builtin.dnf:
+    name: '@php:remi-7.3'
     state: present
-    update_cache: yes
-    filename: 'sury'
 
 - name: install php dependencies
-  apt:
+  dnf:
     name: "{{ item }}"
     state: present
     update_cache: yes
   loop:
-    - php7.3
-    - php7.3-cli
-    - php7.3-intl
-    - php7.3-iconv
-    - php7.3-fpm
-    - php7.3-curl
-    - php7.3-gd
-    - php7.3-mysql
-    - php7.3-mysqli
-    - php7.3-opcache
-    - php7.3-json
-    - php7.3-mbstring
-    - php7.3-soap
-    - php7.3-xml
-    - php7.3-zip
-    - php7.3-gmp
-    - php7.3-bcmath
+    - php
+    - php-cli
+    - php-intl
+    - php-iconv
+    - php-fpm
+    - php-curl
+    - php-gd
+    - php-mysql
+    - php-mysqli
+    - php-opcache
+    - php-json
+    - php-mbstring
+    - php-soap
+    - php-xml
+    - php-zip
+    - php-gmp
+    - php-bcmath
     - php-memcached
     - php-xdebug
     - php-redis
@@ -63,7 +79,7 @@
 - name: reload service php-fcgi
   become: true
   systemd:
-    name: php7.3-fpm
+    name: php-fpm
     state: reloaded
 
 - name: install composer
