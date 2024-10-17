@@ -1,0 +1,7 @@
+---
+- name: Install and configure monica service
+  gather_facts: true
+  hosts: all
+  become: true
+  roles:
+    - monica

@@ -1,0 +1,34 @@
+---
+- name: Install packages (Debian)
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: true
+  loop:
+    - git
+    - apt-transport-https
+    - nginx
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Install packages (RHEL)
+  ansible.builtin.dnf:
+    name: "{{ item }}"
+    state: present
+    update_cache: true
+  loop:
+    - git
+    - apt-transport-https
+    - nginx
+  when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
+
+- name: Check out master branch
+  ansible.builtin.git:
+    repo: 'https://github.com/monicahq/monica'
+    dest: /srv/monicahq
+    version: master
+
+- name: Add the user
+  ansible.builtin.user:
+    name: "{{ monica_user }}"
+    shell: /usr/bin/nologin
+    home: "/srv/{{ monica_user }}"

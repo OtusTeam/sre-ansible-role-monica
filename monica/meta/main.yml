@@ -1,0 +1,9 @@
+galaxy_info:
+  role_name: monica
+  author: C0R2JH
+  description: Install and maintain Monica CRM
+  company: none
+  license: Apache
+  min_ansible_version: "2.7"
+  galaxy_tags:
+    - system

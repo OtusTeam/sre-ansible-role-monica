@@ -1,0 +1,12 @@
+---
+- name: Preflight VMS
+  ansible.builtin.include_tasks:
+    - preflight.yml
+
+- name: Install service monica
+  ansible.builtin.include_tasks:
+    - install.yml
+
+- name: Configure service monica
+  ansible.builtin.include_tasks:
+    - configure.yml
