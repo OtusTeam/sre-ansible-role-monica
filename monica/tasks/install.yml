@@ -1,0 +1,96 @@
+---
+- name: Add GPG Sury key (Debian)
+  ansible.builtin.apt_key:
+    url: "{{ sury_gpg_key }}"
+    state: present
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Add GPG Sury key (RHEL)
+  ansible.builtin.rpm_key:
+    key: "{{ sury_gpg_key }}"
+    state: present
+  when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
+
+- name: Add sury repositories (Debian)
+  ansible.builtin.apt_repository:
+    filename: 'sury'
+    repo: "deb {{ sury_repo }} stretch main"
+    state: present
+    update_cache: true
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Add sury repositories (RHEL)
+  ansible.builtin.yum_repository:
+    name: 'sury'
+    baseurl: "{{ sury_repo }}"
+    state: present
+    file: 'sury'
+  when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
+
+- name: Install PHP dependencies (Debian)
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: true
+  loop:
+    - php7.3
+    - php7.3-cli
+    - php7.3-intl
+    - php7.3-iconv
+    - php7.3-fpm
+    - php7.3-curl
+    - php7.3-gd
+    - php7.3-mysql
+    - php7.3-mysqli
+    - php7.3-opcache
+    - php7.3-json
+    - php7.3-mbstring
+    - php7.3-soap
+    - php7.3-xml
+    - php7.3-zip
+    - php7.3-gmp
+    - php7.3-bcmath
+    - php-memcached
+    - php-xdebug
+    - php-redis
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+  notify: Reload service php-fcgi (Debian)
+
+- name: Install PHP dependencies (RHEL)
+  ansible.builtin.dnf:
+    name: "{{ item }}"
+    state: present
+    update_cache: true
+  loop:
+    - php
+    - php-cli
+    - php-intl
+    - php-iconv
+    - php-fpm
+    - php-curl
+    - php-gd
+    - php-mysql
+    - php-mysqli
+    - php-opcache
+    - php-json
+    - php-mbstring
+    - php-soap
+    - php-xml
+    - php-zip
+    - php-gmp
+    - php-bcmath
+    - php-memcached
+    - php-xdebug
+    - php-redis
+  when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux'
+  notify: Reload service php-fcgi (RHEL)
+
+
+- name: Install composer
+  ansible.builtin.include_role:
+    name: geerlingguy.composer
+
+- name: Install composer dependencies
+  community.general.composer:
+    command: install
+    working_dir: /srv/monicahq

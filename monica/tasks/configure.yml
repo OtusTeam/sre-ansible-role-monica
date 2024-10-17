@@ -1,0 +1,55 @@
+---
+- name: Prepare configuration
+  ansible.builtin.template:
+    src: env.j2
+    dest: /srv/monicahq/.env
+    mode: preserve
+
+- name: Run an initial key generation
+  ansible.builtin.command: "/usr/bin/php /srv/monicahq/artisan key:generate"
+  register: initial.key.output
+  changed_when: initial.key.output.rc != 0
+  args:
+    chdir: /srv/monicahq/
+  tags: molecule-notest
+
+- name: Run an initial migration
+  ansible.builtin.command: "/usr/bin/php /srv/monicahq/artisan setup:production --force"
+  register: initial.migration.output
+  changed_when: initial.migration.output.rc != 0
+  args:
+    chdir: /srv/monicahq/
+  tags: molecule-notest
+
+- name: Place a scheduler cron job
+  ansible.builtin.cron:
+    user: monicahq
+    name: "scheduler"
+    job: "/usr/bin/php /srv/monicahq/artisan schedule:run"
+
+- name: Recursively change ownership of a directory
+  ansible.builtin.file:
+    path: /srv/monicahq
+    state: directory
+    recurse: true
+    owner: monicahq
+    group: www-data
+
+- name: Put right permissions to storage
+  ansible.builtin.file:
+    path: /srv/monicahq/storage
+    state: directory
+    recurse: true
+    mode: g+w
+
+- name: Create nginx vhost config
+  ansible.builtin.template:
+    src: monicahq.conf.j2
+    dest: /etc/nginx/sites-enabled/monica.conf
+    mode: preserve
+
+- name: Remove default nginx configuration
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Reload service nginx
