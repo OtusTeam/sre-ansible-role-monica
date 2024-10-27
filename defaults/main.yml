@@ -1,1 +1,6 @@
+# defaults/main.yml
 
+# Переменные для установки пакетов
+epel_package: "epel-release"
+httpd_package: "httpd"
+git_package: "git"
