@@ -1,0 +1,18 @@
+handlers:
+  - name: Reload service php-fcgi (Debian)
+    become: true
+    ansible.builtin.systemd:
+      name: php7.3-fpm
+      state: reloaded
+
+  - name: Reload service php-fcgi (RHEL)
+    become: true
+    ansible.builtin.systemd:
+      name: php-fpm
+      state: reloaded
+
+  - name: Reload service nginx
+    become: true
+    ansible.builtin.systemd:
+      name: nginx
+      state: reloaded
