@@ -1,9 +1,23 @@
 ---
-- name: install packages
-  apt:
+- set_fact:
+    ansible_python_interpreter: '/usr/bin/python3.8'
+- name: install packages (Debian based)
+  ansible.builtin.apt:
     name: "{{ item }}"
     state: present
     update_cache: yes
+  when: ansible_os_family == "Debian"
+  loop:
+    - git
+    - apt-transport-https
+    - nginx
+
+- name: install packages (RH based)
+  ansible.builtin.dnf:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "RedHat"
   loop:
     - git
     - apt-transport-https
@@ -13,28 +27,30 @@
   git:
     repo: 'https://github.com/monicahq/monica'
     dest: /srv/monicahq
-    version: master
+    version: 4.x
 
 - name: Add the user
-  user:
+  ansible.builtin.user:
     name: monicahq
     shell: /usr/bin/nologin
     home: /srv/monicahq
 
 - name: Install sury key
-  apt_key:
+  ansible.builtin.apt_key:
     url: 'https://packages.sury.org/php/apt.gpg'
     state: present
+  when: ansible_os_family == "Debian"
 
 - name: Add sury repositories
-  apt_repository:
+  ansible.builtin.apt_repository:
     repo: "deb https://packages.sury.org/php/ stretch main"
     state: present
     update_cache: yes
     filename: 'sury'
+  when: ansible_os_family == "Debian"
 
 - name: install php dependencies
-  apt:
+  ansible.builtin.apt:
     name: "{{ item }}"
     state: present
     update_cache: yes
@@ -59,13 +75,51 @@
     - php-memcached
     - php-xdebug
     - php-redis
+  when: ansible_os_family == "Debian"
+  notify: Reload service php-fcgi (Debian)
 
-- name: reload service php-fcgi
+- name: Install PHP dependencies (RH)
+  ansible.builtin.dnf:
+    name: "{{ item }}"
+    state: present
+    update_cache: true
+  loop:
+    - php
+    - php-cli
+    - php-intl
+    - php-iconv
+    - php-fpm
+    - php-curl
+    - php-gd
+    - php-mysqlnd
+    - php-mysqli
+    - php-opcache
+    - php-json
+    - php-mbstring
+    - php-soap
+    - php-xml
+    - php-zip
+    - php-gmp
+    - php-bcmath
+    - php-memcached
+    - php-xdebug
+    - php-redis
+  when: ansible_os_family == 'RedHat'
+  notify: Reload service php-fcgi (RH)
+
+- name: reload service php-fcgi (Debian)
   become: true
-  systemd:
+  ansible.builtin.systemd:
     name: php7.3-fpm
     state: reloaded
+  when: ansible_os_family == 'Debian'
 
+- name: reload service php-fcgi (RH)
+  become: true
+  ansible.builtin.systemd:
+    name: php-fpm
+    state: reloaded
+  when: ansible_os_family == 'RedHat'
 - name: install composer
   include_role:
     name: geerlingguy.composer
@@ -74,31 +128,38 @@
   composer:
     command: install
     working_dir: /srv/monicahq
+
 - name: prepare configuration
   template:
     src: env.j2
     dest: /srv/monicahq/.env
 
 - name: Run an initial key generation
-  command: "/usr/bin/php /srv/monicahq/artisan key:generate"
+  ansible.builtin.command: "/usr/bin/php /srv/monicahq/artisan key:generate"
   args:
     chdir: /srv/monicahq/
   tags: molecule-notest
+- name: Put right permissions to storage
+  ansible.builtin.file:
+    path: /srv/monicahq/storage
+    state: directory
+    recurse: yes
+    mode: g+w
 
 - name: Run an initial migration
-  command: "/usr/bin/php /srv/monicahq/artisan setup:production --force"
+  ansible.builtin.command: "/usr/bin/php /srv/monicahq/artisan setup:production --force"
   args:
     chdir: /srv/monicahq/
   tags: molecule-notest
 
 - name: Place a scheduler cron job
-  cron:
+  ansible.builtin.cron:
     user: monicahq
     name: "scheduler"
     job: "/usr/bin/php /srv/monicahq/artisan schedule:run"
 
 - name: Recursively change ownership of a directory
-  file:
+  ansible.builtin.file:
     path: /srv/monicahq
     state: directory
     recurse: yes
@@ -106,21 +167,24 @@
     group: www-data
 
 - name: Put right permissions to storage
-  file:
+  ansible.builtin.file:
     path: /srv/monicahq/storage
     state: directory
     recurse: yes
     mode: g+w
+
 - name: Create nginx vhost config
-  template:
+  ansible.builtin.template:
     src: monicahq.conf.j2
     dest: /etc/nginx/sites-enabled/monica.conf
+
 - name: Remove default nginx configuration
-  file:
+  ansible.builtin.file:
     path: /etc/nginx/sites-enabled/default
     state: absent
+
 - name: reload service nginx
   become: true
-  systemd:
+  ansible.builtin.systemd:
     name: nginx
     state: reloaded

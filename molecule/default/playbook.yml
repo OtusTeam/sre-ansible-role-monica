@@ -1,6 +1,5 @@
 - hosts: all
   become: true
-
   tasks:
     - debug:
         msg: >-
@@ -8,4 +7,4 @@
           on {{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }}
 
     - import_role:
-        name: ansible-role-monica
+        name: sre-ansible-role-monica
